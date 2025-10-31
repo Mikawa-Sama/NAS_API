@@ -46,6 +46,11 @@ Folder.init({
     ownerId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        references: {
+            model: "Users",
+            key: "userId",
+        },
+        onDelete: "CASCADE",
     },
 }, {
     sequelize,
@@ -66,4 +71,4 @@ Folder.init({
 });
 
 
-export default Folder;
+export { Folder };

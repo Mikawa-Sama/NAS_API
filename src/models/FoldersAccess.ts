@@ -27,10 +27,20 @@ FolderAccess.init({
     folderId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        references: {
+            model: "Folders",
+            key: "folderId",
+        },
+        onDelete: "CASCADE",
     },
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        references: {
+            model: "Users",
+            key: "userId",
+        },
+        onDelete: "CASCADE",
     },
     canView: {
         type: DataTypes.BOOLEAN,
@@ -67,3 +77,5 @@ FolderAccess.init({
         }
     },
 });
+
+export { FolderAccess };

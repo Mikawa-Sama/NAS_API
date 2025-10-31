@@ -24,6 +24,11 @@ RefreshToken.init(
         userId: {
             type: DataTypes.INTEGER,
             allowNull: false,
+            references: {
+                model: "Users",
+                key: "userId"
+            },
+            onDelete: "CASCADE",
         },
         expiresAt: {
             type: DataTypes.DATE,
@@ -38,5 +43,5 @@ RefreshToken.init(
     }
 );
 
-export default RefreshToken;
+export { RefreshToken };
 

@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-import User from "../models/Users";
 import { reply, replyError, generateAccessToken, generateRefreshToken, refreshAccessToken } from "../utils";
-import RefreshToken from "../models/RefreshTokens"
+import { RefreshToken, User } from "../models"
 
 
 /*

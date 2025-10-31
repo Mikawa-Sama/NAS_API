@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import RefreshToken from "./models/RefreshTokens";
+import { RefreshToken } from "./models";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super_secure";
 const REFRESH_SECRET = process.env.REFRESH_SECRET || "very_secure";

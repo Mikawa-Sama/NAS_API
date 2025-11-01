@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import User from "../models/Users";
-import { reply, replyError } from "../utils";
+import { User } from "../models";
+import { reply, replyError } from "../utils/other";
 
 /*
 * Get user
@@ -25,22 +25,12 @@ export const updateUser = async (req: Request, res: Response) => {
         if (!user) return replyError(res, 400, "Utilisateur non trouvé");
 
         const { username, password } = req.body;
+        const updateData: Partial<{ username: string; password: string }> = {};
         
-        if (username) {
-            user.username = username;
-        }
-        if (password) { 
-            /*
-            * Password will be hashed before saving
-            */
-            user.password = password;
-        }
+        if (username) updateData.username = username;
+        if (password) updateData.password = password;
         
-        user.set({
-            username,
-            password,
-        });
-        await user.save();
+        await user.update(updateData);
 
         return reply(res, 200, { message: "Utilisateur mis à jour avec succès", user });
     } catch (error) {

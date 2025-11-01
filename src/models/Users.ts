@@ -1,7 +1,7 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import bcrypt from 'bcrypt';
-import { IUser } from '../interfaces/User';
+import { IUser } from '../interfaces';
 
 /** 
 * User model
@@ -12,7 +12,7 @@ class User extends Model<IUser> implements IUser {
     public username!: string;
     public password!: string;
     public readonly createdAt!: Date;
-    public updatedAt!: Date;
+    public readonly updatedAt!: Date;
 
     /**
      * Verify password

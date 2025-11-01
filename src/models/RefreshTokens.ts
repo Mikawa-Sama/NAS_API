@@ -1,6 +1,7 @@
 import { Model, DataTypes } from "sequelize";
 import sequelize from "../config/database";
-import { IRefreshToken } from "../interfaces/refreshToken"
+import { IRefreshToken } from "../interfaces"
+import { User } from "./Users";
 
 /**
  * Modèle Sequelize pour les tokens de rafraîchissement.
@@ -42,6 +43,7 @@ RefreshToken.init(
         timestamps: false,
     }
 );
+
 
 export { RefreshToken };
 

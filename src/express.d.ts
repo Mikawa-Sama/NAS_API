@@ -1,11 +1,11 @@
-import { IUser } from "./interfaces/User";
+import { IUser } from "./interfaces";
 
 declare global {
     namespace Express {
-        interface User extends IUser { }
+        // interface User extends IUser { }
 
         interface Request {
-            user?: IUser;
+            user: IUser;
         }
     }
 } 

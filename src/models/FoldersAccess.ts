@@ -1,6 +1,7 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../config/database';
-import { IFolderAccess } from '../interfaces/FolderAccess';
+import { IFolderAccess } from '../interfaces';
+import { Folder } from './Folders';
 
 /** 
 * FolderAccess model
@@ -13,6 +14,8 @@ class FolderAccess extends Model<IFolderAccess> implements IFolderAccess {
     public canView!: boolean;
     public canEdit!: boolean;
     public canDelete!: boolean;
+    public readonly createdAt!: Date;
+    public readonly updatedAt!: Date;
 }
 
 /*
@@ -77,5 +80,6 @@ FolderAccess.init({
         }
     },
 });
+
 
 export { FolderAccess };

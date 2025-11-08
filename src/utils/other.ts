@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-
+import { File } from "../models";
 /**
  * Utility function to send a JSON response with an HTTP status code.
  * @param {Response} res - Express response object.
@@ -21,5 +21,18 @@ export const reply = <T>(res: Response, httpCode: number, data: T, success = tru
  */
 export const replyError = (res: Response, httpCode = 500, message = "Server Error"): void => {
     res.status(httpCode).json({ success: false, error: message });
+};
+
+/**
+ * Utility function to send a file
+ * @param {Response} res - Express response object.
+ * @param {number} httpCode - HTTP status code.
+ * @param {File} file - file object. 
+ * @param {Buffer} data - file to send. 
+ */
+export const replyFile = (res: Response, httpCode: number, file: File, data: Buffer): void => {
+    res.setHeader("Content-Type", file.type);
+    res.setHeader("Contnet-Disposition", `attachment; filename="${file.fileName}"`);
+    res.status(httpCode).send(data);
 };
 

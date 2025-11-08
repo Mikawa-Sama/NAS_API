@@ -5,12 +5,12 @@ import { reply, replyError } from "../utils";
 /*
 * Get permession
 */
-export const getPermission = async (req: Request, res: Response) => {
+export const getPermissionByFolder = async (req: Request, res: Response) => {
     try {
         let folder: Folder | null;
         let permissionList: FolderAccess[] | null;
 
-        const folderId: number = parseInt(req.params.id);
+        const folderId: number = parseInt(req.params.fileId);
         if (isNaN(folderId)) return  replyError(res, 400, "Id du dossier manquant");
 
         folder = await Folder.findByPk(folderId);
@@ -105,7 +105,7 @@ export const deletePerssion = async (req: Request, res: Response) => {
         let permission: FolderAccess | null;
         
         const userId: number = req.user.userId;
-        const permissionId: number = parseInt(req.params.id);
+        const permissionId: number = parseInt(req.params.permissionId);
 
         if (isNaN(permissionId)) return replyError(res, 500, "Id de la permission manquant");
 

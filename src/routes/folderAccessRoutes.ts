@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { getPermission, createPermission, updatePermission, deletePerssion } from "../controllers/folderAccessController"
+import { getPermissionByFolder, createPermission, updatePermission, deletePerssion } from "../controllers/folderAccessController"
 import { parser, verifyToken } from "../utils";
 import { z } from "zod";
 
 const router = Router();
 
-router.get('/:id', verifyToken, getPermission);
+router.get('/:folderId', verifyToken, getPermissionByFolder);
 
 router.post('/create', parser(z.object({
     folderId: z.number(),
@@ -27,6 +27,6 @@ router.put('/update', parser(z.object({
     .optional()
 })), verifyToken, updatePermission);
 
-router.delete('/:id', verifyToken, deletePerssion);
+router.delete('/:permissionId', verifyToken, deletePerssion);
 
 export default router;

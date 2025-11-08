@@ -12,7 +12,7 @@ class User extends Model<IUser> implements IUser {
     public username!: string;
     public password!: string;
     public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public updatedAt!: Date;
 
     /**
      * Verify password

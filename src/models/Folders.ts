@@ -17,7 +17,7 @@ class Folder extends Model<IFolder> implements IFolder {
     public isPublic!: boolean;
     public ownerId!: number;
     public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public updatedAt!: Date;
 
     /**
      * Checks if a user is the owner of a folder

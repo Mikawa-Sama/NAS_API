@@ -15,7 +15,7 @@ class FolderAccess extends Model<IFolderAccess> implements IFolderAccess {
     public canEdit!: boolean;
     public canDelete!: boolean;
     public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public updatedAt!: Date;
 }
 
 /*

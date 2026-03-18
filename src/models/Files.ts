@@ -12,19 +12,19 @@ import { Disk } from "./Disks";
  * @extends Model<IFile>
  */
 class File extends Model<IFile> implements IFile {
-    public fileId!: number;
-    public orignalFileId?: number;
-    public folderId!: number;
-    public ownerId!: number;
-    public diskId!: number;
-    public fileName!: string;
-    public filePath!: string;
-    public type!: string;
-    public iv!: string;
-    public encKey!: string;
-    public authTag!: string;
-    public readonly createdAt!: Date;
-    public updatedAt!: Date;
+    declare fileId: number;
+    declare orignalFileId?: number;
+    declare folderId: number;
+    declare ownerId: number;
+    declare diskId: number;
+    declare fileName: string;
+    declare filePath: string;
+    declare type: string;
+    declare iv: string;
+    declare encKey: string;
+    declare authTag: string;
+    declare readonly createdAt: Date;
+    declare updatedAt: Date;
 
     private static MASTER_KEY = process.env.MASTER_KEY || "maximum encryption";
 

@@ -9,8 +9,10 @@
     "esModuleInterop": true,         // permet import/export interop
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "typeRoots": ["./src/express.d.ts"]
+    "sourceMap": true, 
+    "types": ["express"],
+    "typeRoots": ["src/config"]
   },
-  "include": ["src"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

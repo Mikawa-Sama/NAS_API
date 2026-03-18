@@ -6,13 +6,13 @@ import { IDisk } from "../interfaces";
  * 
  */
 class Disk extends Model<IDisk> implements IDisk {
-    public diskId!: number;
-    public name!: string;
-    public path!: string;
-    public capacity!: number;
-    public freeSpace!: number;
-    public readonly createdAt!: Date;
-    public updatedAt!: Date;
+    declare diskId: number;
+    declare name: string;
+    declare path: string;
+    declare capacity: number;
+    declare freeSpace: number;
+    declare readonly createdAt: Date;
+    declare updatedAt: Date;
 
     public static async DiskWithMostSpace(fileSize: number): Promise<Disk | null> {
         return await Disk.findOne({

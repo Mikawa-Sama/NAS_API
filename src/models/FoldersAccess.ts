@@ -8,14 +8,14 @@ import { Folder } from './Folders';
 * @extends Model<IFolderAccess>
 */
 class FolderAccess extends Model<IFolderAccess> implements IFolderAccess {
-    public folderAccessId!: number;
-    public folderId!: number;
-    public userId!: number;
-    public canView!: boolean;
-    public canEdit!: boolean;
-    public canDelete!: boolean;
-    public readonly createdAt!: Date;
-    public updatedAt!: Date;
+    declare folderAccessId: number;
+    declare folderId: number;
+    declare userId: number;
+    declare canView: boolean;
+    declare canEdit: boolean;
+    declare canDelete: boolean;
+    declare readonly createdAt: Date;
+    declare updatedAt: Date;
 }
 
 /*

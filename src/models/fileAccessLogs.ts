@@ -6,13 +6,13 @@ import { IFileAccessLog } from "../interfaces";
  * 
  */
 class FileAccessLog extends Model<IFileAccessLog> implements IFileAccessLog {
-    public logId!: number;
-    public fileId!: number;
-    public userId!: number;
-    public action!: "create" | "view" | "download" | "edit" | "delete";
-    public ipAddress!: string;
-    public userAgent!: string;
-    public createdAt?: Date | undefined;
+    declare logId: number;
+    declare fileId: number;
+    declare userId: number;
+    declare action: "create" | "view" | "download" | "edit" | "delete";
+    declare ipAddress: string;
+    declare userAgent: string;
+    declare createdAt?: Date | undefined;
 }
 
 FileAccessLog.init({

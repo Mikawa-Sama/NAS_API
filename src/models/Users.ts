@@ -3,16 +3,19 @@ import sequelize from '../config/database';
 import bcrypt from 'bcrypt';
 import { IUser } from '../interfaces';
 
+
+interface UserCreationAttribute extends Omit<IUser, 'userId'> {}
+
 /** 
 * User model
 * @extends Model<IUser>
 */
-class User extends Model<IUser> implements IUser {
-    public userId!: number;
-    public username!: string;
-    public password!: string;
-    public readonly createdAt!: Date;
-    public updatedAt!: Date;
+class User extends Model<IUser, UserCreationAttribute> implements IUser {
+    declare userId: number;
+    declare username: string;
+    declare password: string;
+    declare readonly createdAt: Date;
+    declare updatedAt: Date;
 
     /**
      * Verify password

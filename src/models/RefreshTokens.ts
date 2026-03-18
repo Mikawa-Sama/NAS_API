@@ -8,9 +8,9 @@ import { User } from "./Users";
  * @extends Model<IRefreshToken>
  */
 class RefreshToken extends Model<IRefreshToken> implements IRefreshToken {
-    public token!: string;
-    public userId!: number;
-    public expiresAt!: Date;
+    declare token: string;
+    declare userId: number;
+    declare expiresAt: Date;
 }
 
 /**

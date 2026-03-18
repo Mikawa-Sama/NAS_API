@@ -10,14 +10,14 @@ import { User } from './Users';
 */
 
 class Folder extends Model<IFolder> implements IFolder {
-    public folderId!: number;
-    public name!: string;
-    public parentFolderId!: number;
-    public password?: string;
-    public isPublic!: boolean;
-    public ownerId!: number;
-    public readonly createdAt!: Date;
-    public updatedAt!: Date;
+    declare folderId: number;
+    declare name: string;
+    declare parentFolderId: number;
+    declare password?: string;
+    declare isPublic: boolean;
+    declare ownerId: number;
+    declare readonly createdAt: Date;
+    declare updatedAt: Date;
 
     /**
      * Checks if a user is the owner of a folder

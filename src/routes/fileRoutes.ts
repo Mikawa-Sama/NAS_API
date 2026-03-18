@@ -6,9 +6,13 @@ import { z } from "zod";
 const router = Router();
 
 
-router.get('/:folderId', verifyToken, getFilesByFolder);
+router.get('/:folderId', verifyToken, parser(z.object({
+    folderId: z.number()
+})) ,getFilesByFolder);
 
-router.get('/download/:id', verifyToken, downloadFile);
+router.get('/download/:id', verifyToken, parser(z.object({
+    
+})), downloadFile);
 
 router.post('/upload', parser(z.object({
     folderId: z.number(), 

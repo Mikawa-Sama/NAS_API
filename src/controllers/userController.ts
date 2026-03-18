@@ -10,7 +10,9 @@ export const getUser = async (req: Request, res: Response) => {
         const user = await User.findByPk(req.user?.userId);
         if (!user) return replyError(res, 400, "Utilisateur non trouvé");
         
-        return reply(res, 200, { user });
+        const {password, userId, ...rest} = user.dataValues;
+
+        return reply(res, 200, { rest });
     } catch (error) {
         return replyError(res, 500, "Erreur lors de la récupération de l'utilisateur");
     }

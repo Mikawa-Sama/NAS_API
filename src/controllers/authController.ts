@@ -14,7 +14,7 @@ export const register = async (req: Request, res: Response) => {
         if (existingUser) return replyError(res, 404, "Nom déjà utilisé");
 
         const user = await User.create({ username, password });
-        return reply(res, 201, { message: "Utilisateur créé ! "});
+        return reply(res, 201, { message: "Utilisateur créé !"});
     }
     catch (error) {
         return replyError(res, 500, "Erreur lors de l'inscription");
@@ -28,16 +28,19 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     try {
         const { username, password } = req.body;
-        const user = await User.findOne({ where: { username} });
+        const user = await User.findOne({ where: { username } });
         
         if (!user) return replyError(res, 400, "Utilisateur introuvable !");
 
-        const validPassword = user.verifyPassword(password);
+        const validPassword = await user.verifyPassword(password);
         if (!validPassword) return replyError(res, 401, "Mot de passe incorrect");
 
         const token = generateAccessToken(user.userId, user.username);
         const refreshToken = await generateRefreshToken(user.userId);
-        return reply(res, 201, { message: "Connexion réussie", token, refreshToken });
+        
+        res.cookie('token', token);
+        res.cookie('refreshToken', refreshToken);
+        return reply(res, 201, { message: "Connexion réussie"});
     } catch (error) {
         return replyError(res, 500, "Erreur lors de la connexion");
     }
@@ -48,14 +51,19 @@ export const login = async (req: Request, res: Response) => {
 */
 export const logout = async (req: Request, res: Response) => {
     try {
-        const { refreshToken } = req.body
+        const authHeader = req.headers.cookie;
+        if (!authHeader) return replyError(res, 401, "Token manquant");
+
+        const refreshToken = authHeader.split(";")[1].split("=")[0];
         if (!refreshToken) return reply(res, 200, { message : "Pas de refreshToken à supprimé" });
 
         await RefreshToken.destroy({ where: { token: refreshToken } });
 
-        return reply(res, 200, { message: "RefreshToken détruit" });
-    } catch (error) {
-        return replyError(res);
+        res.clearCookie("token");
+        res.clearCookie("refreshToken");
+        return reply(res, 200, { message: "Token détruit" });
+    } catch (error:any) {
+        return replyError(res, error.message);
     }
 };
 
@@ -72,5 +80,6 @@ export const refreshTokenEndpoint = async (req: Request, res: Response) => {
         return replyError(res, 403, "Refresh token invalide ou expiré");
     }
 
+    res.setHeader("token", newAccessToken);
     return reply(res, 200, { accessToken: newAccessToken });
 };

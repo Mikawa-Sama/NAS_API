@@ -9,12 +9,13 @@ import path from "path";
 const JWT_SECRET = process.env.JWT_SECRET || "super_secure";
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.cookie;
     if (!authHeader) return replyError(res, 401, "Token manquant");
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.split(";")[1].split("=")[1];
     try { 
         const payload = jwt.verify(token, JWT_SECRET) as any;
+        console.log(payload)
         req.user = {
             userId: payload.id,
             username: payload.username,

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { File } from "../models";
+import { decryptMetadata } from "./metadataCrypto";
 /**
  * Utility function to send a JSON response with an HTTP status code.
  * @param {Response} res - Express response object.
@@ -32,7 +33,8 @@ export const replyError = (res: Response, httpCode = 500, message = "Server Erro
  */
 export const replyFile = (res: Response, httpCode: number, file: File, data: Buffer): void => {
     res.setHeader("Content-Type", file.type);
-    res.setHeader("Contnet-Disposition", `attachment; filename="${file.fileName}"`);
+    const downloadName = decryptMetadata(file.originalName) || file.fileName;
+    res.setHeader("Content-Disposition", `attachment; filename="${downloadName.replace(/"/g, "")}"`);
     res.status(httpCode).send(data);
 };
 

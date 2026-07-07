@@ -1,23 +1,26 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import { IFolder } from '../interfaces';
 import { FolderAccess } from './FoldersAccess';
-import { User } from './Users';
+import bcrypt from 'bcrypt';
+import { encryptMetadata } from '../utils/metadataCrypto';
 
 /** 
 * Folder model
 * @extends Model<IFolder>
 */
 
-class Folder extends Model<IFolder> implements IFolder {
-    declare folderId: number;
-    declare name: string;
-    declare parentFolderId: number;
-    declare password?: string;
-    declare isPublic: boolean;
-    declare ownerId: number;
-    declare readonly createdAt: Date;
-    declare updatedAt: Date;
+type FolderCreationAttributes = Optional<IFolder, "folderId" | "password" | "isPublic" | "createdAt" | "updatedAt">;
+
+class Folder extends Model<IFolder, FolderCreationAttributes> implements IFolder {
+    public folderId!: number;
+    public name!: string;
+    public parentFolderId!: number;
+    public password?: string;
+    public isPublic!: boolean;
+    public ownerId!: number;
+    public readonly createdAt!: Date;
+    public updatedAt!: Date;
 
     /**
      * Checks if a user is the owner of a folder
@@ -74,6 +77,7 @@ Folder.init({
     parentFolderId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        defaultValue: 0,
     },
     password: {
         type: DataTypes.STRING,
@@ -82,6 +86,7 @@ Folder.init({
     isPublic: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
     },
     ownerId: {
         type: DataTypes.INTEGER,
@@ -103,8 +108,20 @@ Folder.init({
         * @param folder - The folder to set the isPublic property for
         */
         beforeCreate: async (folder: Folder) => {
+            folder.name = encryptMetadata(folder.name) || folder.name;
             if (folder.isPublic === undefined || folder.isPublic === null) {
                 folder.isPublic = false;
+            }
+            if (folder.password) {
+                folder.password = await bcrypt.hash(folder.password, 12);
+            }
+        },
+        beforeUpdate: async (folder: Folder) => {
+            if (folder.changed("name")) {
+                folder.name = encryptMetadata(folder.name) || folder.name;
+            }
+            if (folder.changed("password") && folder.password) {
+                folder.password = await bcrypt.hash(folder.password, 12);
             }
         }
     },

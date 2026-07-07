@@ -3,3 +3,7 @@ export * from "./RefreshTokens";
 export * from "./Folders";
 export * from "./FoldersAccess";
 export * from "./Files";
+export * from "./fileAccessLogs";
+export * from "./AccountAccessLogs";
+export * from "./UserDevices";
+export * from "./Disks";

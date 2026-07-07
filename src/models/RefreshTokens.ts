@@ -1,4 +1,4 @@
-import { Model, DataTypes } from "sequelize";
+import { Model, DataTypes, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { IRefreshToken } from "../interfaces"
 import { User } from "./Users";
@@ -7,10 +7,13 @@ import { User } from "./Users";
  * Modèle Sequelize pour les tokens de rafraîchissement.
  * @extends Model<IRefreshToken>
  */
-class RefreshToken extends Model<IRefreshToken> implements IRefreshToken {
-    declare token: string;
-    declare userId: number;
-    declare expiresAt: Date;
+type RefreshTokenCreationAttributes = Optional<IRefreshToken, never>;
+
+class RefreshToken extends Model<IRefreshToken, RefreshTokenCreationAttributes> implements IRefreshToken {
+    public token!: string;
+    public userId!: number;
+    public deviceId!: number;
+    public expiresAt!: Date;
 }
 
 /**
@@ -28,6 +31,15 @@ RefreshToken.init(
             references: {
                 model: "Users",
                 key: "userId"
+            },
+            onDelete: "CASCADE",
+        },
+        deviceId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: "UserDevices",
+                key: "deviceId"
             },
             onDelete: "CASCADE",
         },

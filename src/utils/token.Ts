@@ -1,48 +1,84 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { RefreshToken } from "../models";
+import { RefreshToken, User, UserDevice } from "../models";
+import dotenv from "dotenv";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_secure";
-const REFRESH_SECRET = process.env.REFRESH_SECRET || "very_secure";
+dotenv.config();
 
+const JWT_ISSUER = process.env.JWT_ISSUER || "nas-api";
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "nas-web";
 
-/**
- * Generates a JWT access token for a user.
- * @param {number} userId - The user's ID.
- * @param {string} username - The username.
- * @returns {string} The signed JWT access token.
- */
-export const generateAccessToken = (userId: number, username: string) => {
-    return jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: '4h' });
+const assertSecret = (name: string, value: string | undefined): string => {
+    if (!value || value.length < 32) {
+        throw new Error(`${name} must be set and contain at least 32 characters`);
+    }
+
+    return value;
 };
 
-/**
- * Generates a JWT refresh token and saves it to the database.
- * @param {number} userId - The user's ID.
- * @returns {Promise<string>} The generated refresh token.
- */
-export const generateRefreshToken = async (userId: number) => {
-    const token = jwt.sign({ id: userId }, REFRESH_SECRET, { expiresIn: "30d" });
+export const jwtSecret = assertSecret("JWT_SECRET", process.env.JWT_SECRET);
+export const refreshSecret = assertSecret("REFRESH_SECRET", process.env.REFRESH_SECRET);
+
+export const jwtVerifyOptions = {
+    algorithms: ["HS256"] as jwt.Algorithm[],
+    audience: JWT_AUDIENCE,
+    issuer: JWT_ISSUER,
+};
+
+export const hashRefreshToken = (refreshToken: string): string => {
+    return crypto.createHmac("sha256", refreshSecret).update(refreshToken).digest("hex");
+};
+
+export const generateAccessToken = (userId: number, username: string, deviceId: number) => {
+    return jwt.sign(
+        { id: userId, username, deviceId },
+        jwtSecret,
+        {
+            algorithm: "HS256",
+            audience: JWT_AUDIENCE,
+            expiresIn: "15m",
+            issuer: JWT_ISSUER,
+        }
+    );
+};
+
+export const generateRefreshToken = async (userId: number, deviceId: number) => {
+    const token = crypto.randomBytes(64).toString("base64url");
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await RefreshToken.create({ token, userId, expiresAt });
-    return token
+    await RefreshToken.create({ token: hashRefreshToken(token), userId, deviceId, expiresAt });
+    return token;
 };
 
-/**
- * Refreshes the access token from a valid refresh token.
- * @param {string} refreshToken - The refresh token to verify.
- * @returns {Promise<string|null>} The new access token or null if the refresh token is invalid.
- */
 export const refreshAccessToken = async (refreshToken: string) => {
-    const savedToken = await RefreshToken.findOne({ where: { token: refreshToken } });
+    const savedToken = await RefreshToken.findOne({ where: { token: hashRefreshToken(refreshToken) } });
     if (!savedToken) return null;
 
-    try {
-        const payload = jwt.verify(refreshToken, REFRESH_SECRET) as any;
-        return generateAccessToken(payload.id, "");
-    } catch (error) {
+    if (savedToken.expiresAt.getTime() <= Date.now()) {
         await savedToken.destroy();
         return null;
     }
+
+    const user = await User.findByPk(savedToken.userId);
+    const device = await UserDevice.findByPk(savedToken.deviceId);
+    if (!user) {
+        await savedToken.destroy();
+        return null;
+    }
+    if (!device || device.revokedAt) {
+        await savedToken.destroy();
+        return null;
+    }
+
+    await savedToken.destroy();
+    await device.update({ lastUsedAt: new Date() });
+
+    return {
+        accessToken: generateAccessToken(user.userId, user.username, device.deviceId),
+        refreshToken: await generateRefreshToken(user.userId, device.deviceId),
+        userId: user.userId,
+        username: user.username,
+        deviceId: device.deviceId,
+    };
 };

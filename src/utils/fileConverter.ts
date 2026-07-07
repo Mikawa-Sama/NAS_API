@@ -1,5 +1,8 @@
 import path from "path";
 import { spawn } from "child_process";
+import crypto from "crypto";
+
+const TMP_UPLOAD_DIR = process.env.TMP_UPLOAD_DIR || "tmpFile";
 
 /**
  * Utility class for converting multimedia files (images and videos)
@@ -58,8 +61,8 @@ export class FileConverter {
      * @throws {Error} If the conversion fails (ffmpeg error)
      */
     public static async convertVideo(file: Express.Multer.File, ext: string): Promise<string> {
-        const convertedName = `${Date.now()}_${path.basename(file.originalname, ext)}.mp4`;
-        const convertedPath = path.join("tmpFile", convertedName);
+        const convertedName = `${crypto.randomUUID()}.mp4`;
+        const convertedPath = path.join(TMP_UPLOAD_DIR, convertedName);
 
         await this.FfmpegConversion(file.path, convertedPath);
 
@@ -75,8 +78,8 @@ export class FileConverter {
      * @throws {Error} If the conversion fails (ffmpeg error)
      */
     public static async convertimage(file: Express.Multer.File, ext: string) {
-        const convertedName = `${Date.now()}_${path.basename(file.originalname, ext)}.jpg`;
-        const convertedPath = path.join("tmpFile", convertedName);
+        const convertedName = `${crypto.randomUUID()}.jpg`;
+        const convertedPath = path.join(TMP_UPLOAD_DIR, convertedName);
 
         await this.FfmpegConversion(file.path, convertedPath);
 

@@ -5,3 +5,5 @@ export * from "./IFolderAccess";
 export * from "./IFiles";
 export * from "./IDisk";
 export * from "./IFileAccessLog";
+export * from "./IAccountAccessLog";
+export * from "./IUserDevice";

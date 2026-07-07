@@ -1,30 +1,31 @@
 import express, { Application } from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import cookieParser from 'cookie-parser';
 import { intitDatabase } from "./config/database";
-import routes from './routes/'
-import * as driveList from "drivelist"
-import { Disk } from "./models/Disks";
+import routes from './routes/';
+import { csrfProtection, securityHeaders } from "./utils";
 
 
 const app: Application = express();
-app.use(cors());
-app.use(bodyParser.json());
-app.use(cookieParser());
+const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+
+app.use(securityHeaders);
+app.use(cors({
+    origin: corsOrigin.split(",").map((origin) => origin.trim()),
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+}));
+app.use(bodyParser.json({ limit: "256kb" }));
+app.use(csrfProtection);
 
 app.use(routes);
 
 (async () => { 
     await intitDatabase();
-
-    const drives = await driveList.list();
-    drives.forEach(async drive => {
-        console.log(drive)
-        console.log(drive.mountpoints[0].path)
-        const disk = await Disk.findOne({ where: { path: drive.mountpoints[0].path }});
-    });
 
     app.listen(process.env.SERVER_PORT || 3000, () => {
         console.log('Server is running...');

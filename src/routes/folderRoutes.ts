@@ -1,39 +1,38 @@
 import { Router } from "express";
 import { createFolder, getFolder, getFolders, updateFolder, deleteFolder } from "../controllers/folderController";
 import { verifyToken, parser } from "../utils";
-import { z } from "zod"
+import { z } from "zod";
 
 const router = Router();
 
-router.get('/parent/:parentId', verifyToken, getFolders);
-router.get('/:id', verifyToken, getFolder);
+const folderPasswordSchema = z.string()
+    .min(12, "Le mot de passe doit faire au minimum 12 caracteres")
+    .max(128, "Le mot de passe ne peut pas faire plus de 128 caracteres")
+    .optional();
 
-router.post('/create', parser(z.object({
-    name: z.string()
-        .min(3, "Le nom du dossier doit faire au moins 3 caractères")
-        .max(30, "Le nom du dossier ne peut pas faire plus de 50 caractères"),
-    parentFolderId: z.number(),
-    password: z.string()
-        .min(4, "Le mot de passe doit faire au minimum 4 caractères")
-        .max(20, "Le mot de passe ne peut pas faire plus de 20 caractères")
-        .optional(),
-    isPublic: z.boolean()
-    })), verifyToken, createFolder);
+router.get("/parent/:parentId", verifyToken, getFolders);
+router.get("/:id", verifyToken, getFolder);
 
-router.put('/update', parser(z.object({
-    folderId: z.number(),
+router.post("/create", verifyToken, parser(z.object({
     name: z.string()
-        .min(3, "Le nom du dossier doit faire au moins 3 caractères")
-        .max(30, "Le nom du dossier ne peut pas faire plus de 50 caractères")
+        .min(3, "Le nom du dossier doit faire au moins 3 caracteres")
+        .max(50, "Le nom du dossier ne peut pas faire plus de 50 caracteres"),
+    parentFolderId: z.number().int().nonnegative(),
+    password: folderPasswordSchema,
+    isPublic: z.boolean().default(false),
+})), createFolder);
+
+router.put("/update", verifyToken, parser(z.object({
+    folderId: z.number().int().positive(),
+    name: z.string()
+        .min(3, "Le nom du dossier doit faire au moins 3 caracteres")
+        .max(50, "Le nom du dossier ne peut pas faire plus de 50 caracteres")
         .optional(),
-    password: z.string()
-        .min(4, "Le mot de passe doit faire au minimum 4 caractères")
-        .max(20, "Le mot de passe ne peut pas faire plus de 20 caractères")
-        .optional(),
+    password: folderPasswordSchema,
     isPublic: z.boolean()
         .optional()
-})), verifyToken, updateFolder);
+})), updateFolder);
 
-router.delete('/:id', verifyToken, deleteFolder);
+router.delete("/:id", verifyToken, deleteFolder);
 
 export default router;

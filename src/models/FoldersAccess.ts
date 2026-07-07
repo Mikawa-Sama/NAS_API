@@ -1,4 +1,4 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import { IFolderAccess } from '../interfaces';
 import { Folder } from './Folders';
@@ -7,15 +7,17 @@ import { Folder } from './Folders';
 * FolderAccess model
 * @extends Model<IFolderAccess>
 */
-class FolderAccess extends Model<IFolderAccess> implements IFolderAccess {
-    declare folderAccessId: number;
-    declare folderId: number;
-    declare userId: number;
-    declare canView: boolean;
-    declare canEdit: boolean;
-    declare canDelete: boolean;
-    declare readonly createdAt: Date;
-    declare updatedAt: Date;
+type FolderAccessCreationAttributes = Optional<IFolderAccess, "folderAccessId" | "canView" | "canEdit" | "canDelete" | "createdAt" | "updatedAt">;
+
+class FolderAccess extends Model<IFolderAccess, FolderAccessCreationAttributes> implements IFolderAccess {
+    public folderAccessId!: number;
+    public folderId!: number;
+    public userId!: number;
+    public canView!: boolean;
+    public canEdit!: boolean;
+    public canDelete!: boolean;
+    public readonly createdAt!: Date;
+    public updatedAt!: Date;
 }
 
 /*
@@ -48,14 +50,17 @@ FolderAccess.init({
     canView: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: true,
     },
     canEdit: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
     },
     canDelete: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
     },
 }, {
     sequelize,

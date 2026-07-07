@@ -1,22 +1,31 @@
-import { Model, DataTypes, Op } from "sequelize";
+import { Model, DataTypes, Op, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { IDisk } from "../interfaces";
 
 /**
  * 
  */
-class Disk extends Model<IDisk> implements IDisk {
-    declare diskId: number;
-    declare name: string;
-    declare path: string;
-    declare capacity: number;
-    declare freeSpace: number;
-    declare readonly createdAt: Date;
-    declare updatedAt: Date;
+type DiskCreationAttributes = Optional<IDisk, "diskId" | "capacity" | "freeSpace" | "isEnabled" | "isHealthy" | "lastHealthCheckAt" | "createdAt" | "updatedAt">;
+
+class Disk extends Model<IDisk, DiskCreationAttributes> implements IDisk {
+    public diskId!: number;
+    public name!: string;
+    public path!: string;
+    public capacity!: number;
+    public freeSpace!: number;
+    public isEnabled!: boolean;
+    public isHealthy!: boolean;
+    public lastHealthCheckAt?: Date | null;
+    public readonly createdAt!: Date;
+    public updatedAt!: Date;
 
     public static async DiskWithMostSpace(fileSize: number): Promise<Disk | null> {
         return await Disk.findOne({
-            where: {freeSpace: { [Op.gte]: fileSize}},
+            where: {
+                freeSpace: { [Op.gte]: fileSize },
+                isEnabled: true,
+                isHealthy: true,
+            },
             order: [["freeSpace", "DESC"]],
         });
     };
@@ -26,6 +35,7 @@ Disk.init(
     {
         diskId: {
             type: DataTypes.INTEGER,
+            autoIncrement: true,
             primaryKey: true,
         },
         name: {
@@ -37,12 +47,28 @@ Disk.init(
             allowNull: false,
         },
         capacity: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.BIGINT,
             allowNull: false,
+            defaultValue: 0,
         },
         freeSpace: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.BIGINT,
             allowNull: false,
+            defaultValue: 0,
+        },
+        isEnabled: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true,
+        },
+        isHealthy: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
+        lastHealthCheckAt: {
+            type: DataTypes.DATE,
+            allowNull: true,
         },
     },
     {

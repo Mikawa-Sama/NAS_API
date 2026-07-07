@@ -1,24 +1,14 @@
-import { Router, Request } from "express";
-import { getFilesByFolder, uploadFile, downloadFile, deleteFile } from "../controllers/fileController"
-import { parser, verifyToken, upload } from "../utils";
-import { z } from "zod";
+import { Router } from "express";
+import { deleteFile, downloadFile, getFileAccessLogs, getFileScanStatus, getFilesByFolder, uploadFile } from "../controllers/fileController";
+import { verifyToken, upload } from "../utils";
 
 const router = Router();
 
-
-router.get('/:folderId', verifyToken, parser(z.object({
-    folderId: z.number()
-})) ,getFilesByFolder);
-
-router.get('/download/:id', verifyToken, parser(z.object({
-    
-})), downloadFile);
-
-router.post('/upload', parser(z.object({
-    folderId: z.number(), 
-})), verifyToken, upload.single("file"), uploadFile);
-
-router.delete('/:fileId', verifyToken, deleteFile);
-
+router.get("/download/:id", verifyToken, downloadFile);
+router.get("/:fileId/scan", verifyToken, getFileScanStatus);
+router.get("/:fileId/logs", verifyToken, getFileAccessLogs);
+router.post("/upload", verifyToken, upload.single("file"), uploadFile);
+router.delete("/:fileId", verifyToken, deleteFile);
+router.get("/:folderId", verifyToken, getFilesByFolder);
 
 export default router;

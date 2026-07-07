@@ -1,23 +1,26 @@
-import { Model, DataTypes } from "sequelize";
+import { Model, DataTypes, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { IFileAccessLog } from "../interfaces";
 
 /**
  * 
  */
-class FileAccessLog extends Model<IFileAccessLog> implements IFileAccessLog {
-    declare logId: number;
-    declare fileId: number;
-    declare userId: number;
-    declare action: "create" | "view" | "download" | "edit" | "delete";
-    declare ipAddress: string;
-    declare userAgent: string;
-    declare createdAt?: Date | undefined;
+type FileAccessLogCreationAttributes = Optional<IFileAccessLog, "logId" | "createdAt">;
+
+class FileAccessLog extends Model<IFileAccessLog, FileAccessLogCreationAttributes> implements IFileAccessLog {
+    public logId!: number;
+    public fileId!: number;
+    public userId!: number;
+    public action!: "create" | "view" | "download" | "edit" | "delete";
+    public ipAddress!: string;
+    public userAgent!: string;
+    public createdAt?: Date | undefined;
 }
 
 FileAccessLog.init({
     logId: {
         type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true,
     },
     fileId: {
@@ -39,7 +42,7 @@ FileAccessLog.init({
         onDelete: "CASCADE",
     },
     action: {
-        type: DataTypes.ENUM,
+        type: DataTypes.ENUM("create", "view", "download", "edit", "delete"),
         allowNull: false,
     },
     ipAddress: {

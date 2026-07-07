@@ -1,32 +1,76 @@
-import { Model, DataTypes } from "sequelize";
+import { Model, DataTypes, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { IFile } from "../interfaces";
 import crypto from "crypto";
 import fs from "fs/promises";
+import { createReadStream, createWriteStream } from "fs";
 import path from "path";
+import { pipeline } from "stream/promises";
 import { Disk } from "./Disks";
+import dotenv from "dotenv";
+import { encryptMetadata } from "../utils/metadataCrypto";
+
+dotenv.config();
 
 
 /**
  * File model
  * @extends Model<IFile>
  */
-class File extends Model<IFile> implements IFile {
-    declare fileId: number;
-    declare orignalFileId?: number;
-    declare folderId: number;
-    declare ownerId: number;
-    declare diskId: number;
-    declare fileName: string;
-    declare filePath: string;
-    declare type: string;
-    declare iv: string;
-    declare encKey: string;
-    declare authTag: string;
-    declare readonly createdAt: Date;
-    declare updatedAt: Date;
+type FileCreationAttributes = Optional<IFile, "fileId" | "orignalFileId" | "scanStatus" | "scanEngine" | "scanResult" | "scannedAt" | "createdAt" | "updatedAt">;
 
-    private static MASTER_KEY = process.env.MASTER_KEY || "maximum encryption";
+class File extends Model<IFile, FileCreationAttributes> implements IFile {
+    public fileId!: number;
+    public orignalFileId?: number | null;
+    public folderId!: number;
+    public ownerId!: number;
+    public diskId!: number;
+    public fileName!: string;
+    public originalName?: string | null;
+    public filePath!: string;
+    public type!: string;
+    public iv!: string;
+    public encKey!: string;
+    public authTag!: string;
+    public scanStatus!: "pending" | "clean" | "infected" | "failed";
+    public scanEngine?: string | null;
+    public scanResult?: string | null;
+    public scannedAt?: Date | null;
+    public readonly createdAt!: Date;
+    public updatedAt!: Date;
+
+    private static getMasterKey(): Buffer {
+        const masterKey = process.env.MASTER_KEY;
+        if (!masterKey || masterKey.length < 32) {
+            throw new Error("MASTER_KEY must be set and contain at least 32 characters");
+        }
+
+        return crypto.createHash("sha256").update(masterKey).digest();
+    }
+
+    private static wrapKey(fileKey: Buffer): string {
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv("aes-256-gcm", File.getMasterKey(), iv);
+        const encryptedKey = Buffer.concat([cipher.update(fileKey), cipher.final()]);
+        const authTag = cipher.getAuthTag();
+
+        return `${iv.toString("hex")}:${authTag.toString("hex")}:${encryptedKey.toString("hex")}`;
+    }
+
+    private static unwrapKey(wrappedKey: string): Buffer {
+        const [ivHex, authTagHex, encryptedKeyHex] = wrappedKey.split(":");
+        if (!ivHex || !authTagHex || !encryptedKeyHex) {
+            throw new Error("Invalid encrypted file key");
+        }
+
+        const decipher = crypto.createDecipheriv("aes-256-gcm", File.getMasterKey(), Buffer.from(ivHex, "hex"));
+        decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
+
+        return Buffer.concat([
+            decipher.update(Buffer.from(encryptedKeyHex, "hex")),
+            decipher.final(),
+        ]);
+    }
 
 
     /**
@@ -34,26 +78,25 @@ class File extends Model<IFile> implements IFile {
      * @param file 
      * @returns 
      */
-    public static async encrypt(file: Express.Multer.File | string) {
+    public static async encrypt(file: Express.Multer.File | string, outputDir = "nas_storage") {
         const inputPath = typeof file === "string" ? file : file.path;
-        const originalName = typeof file === "string" ? path.basename(file) : file.originalname;
 
         const filekey = crypto.randomBytes(32);
         const iv = crypto.randomBytes(16);
+        const outputFileName = `${crypto.randomUUID()}.enc`;
+        await fs.mkdir(outputDir, { recursive: true });
+        const outputPath = path.join(outputDir, outputFileName);
+
         const cipher = crypto.createCipheriv("aes-256-gcm", filekey, iv);
-        const inputData = await fs.readFile(inputPath);
-
-
-        const encryptData = Buffer.concat([cipher.update(inputData), cipher.final()]);
+        await pipeline(
+            createReadStream(inputPath),
+            cipher,
+            createWriteStream(outputPath, { flags: "wx" })
+        );
         const authTag = cipher.getAuthTag();
+        const encKey = File.wrapKey(filekey);
 
-        const outputFileName = `${Date.now()}_${originalName}.enc`;
-        const outputPath = path.join("nas_storage", outputFileName);
-
-        await fs.writeFile(outputPath, encryptData);
-        const encKey = crypto.publicEncrypt(File.MASTER_KEY, filekey);
-
-        return { iv, encKey, authTag, encryptData, outputFileName, outputPath };
+        return { iv, encKey, authTag, outputFileName, outputPath };
     };
 
     /**
@@ -64,9 +107,14 @@ class File extends Model<IFile> implements IFile {
      * @param userId 
      * @returns 
      */
-    public static async encryptSave(file: Express.Multer.File | string, originalFileId: number | null, folderId: number, userId: number) {
+    public static async encryptSave(
+        file: Express.Multer.File | string,
+        originalFileId: number | null,
+        folderId: number,
+        userId: number,
+        scan?: { status: "clean" | "infected" | "failed", engine: string, result: string },
+    ) {
         const inputPath = typeof file === "string" ? file : file.path;
-        const originalName = typeof file === "string" ? path.basename(file) : file.originalname;
         let fileSize: number;
 
         if (typeof file === "string"){
@@ -76,10 +124,10 @@ class File extends Model<IFile> implements IFile {
             fileSize = file.size;
         }
 
-        const { iv, encKey, authTag, encryptData, outputFileName, outputPath } = await File.encrypt(inputPath);
-
         const disk = await Disk.DiskWithMostSpace(fileSize);
         if (!disk) return { success: false, message : "Aucun disque disponible avec suffisamment d'espace libre"};
+
+        const { iv, encKey, authTag, outputFileName, outputPath } = await File.encrypt(inputPath, disk.path);
 
         const createdFile = await File.create({
             orignalFileId: originalFileId,
@@ -87,14 +135,17 @@ class File extends Model<IFile> implements IFile {
             ownerId: userId,
             diskId: disk.diskId,
             fileName: outputFileName,
+            originalName: typeof file === "string" ? path.basename(file) : file.originalname,
             filePath: outputPath,
-            type: path.extname(inputPath).toLowerCase(),
+            type: path.extname(typeof file === "string" ? inputPath : file.originalname).toLowerCase(),
             iv: iv.toString("hex"),
-            encKey: encKey.toString("hex"),
-            authTag: authTag.toString("hex")
+            encKey,
+            authTag: authTag.toString("hex"),
+            scanStatus: scan?.status || "pending",
+            scanEngine: scan?.engine || null,
+            scanResult: scan?.result || null,
+            scannedAt: scan ? new Date() : null,
         } as File);
-
-        await fs.unlink(outputPath);
 
         return { success: true, createdFile };
     };
@@ -104,7 +155,7 @@ class File extends Model<IFile> implements IFile {
      * @returns 
      */
     public async decrypt(): Promise<Buffer> {
-        const fileKey = crypto.privateDecrypt(File.MASTER_KEY, Buffer.from(this.encKey, "hex"));
+        const fileKey = File.unwrapKey(this.encKey);
 
         const encryptedData = await fs.readFile(this.filePath);
 
@@ -127,6 +178,7 @@ File.init(
     {
         fileId: {
             type: DataTypes.INTEGER,
+            autoIncrement: true,
             primaryKey: true,
         },
         orignalFileId: {
@@ -168,6 +220,10 @@ File.init(
             type: DataTypes.STRING,
             allowNull: false,
         },
+        originalName: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+        },
         filePath: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -188,6 +244,23 @@ File.init(
             type: DataTypes.STRING,
             allowNull: false,
         },
+        scanStatus: {
+            type: DataTypes.ENUM("pending", "clean", "infected", "failed"),
+            allowNull: false,
+            defaultValue: "pending",
+        },
+        scanEngine: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        scanResult: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+        },
+        scannedAt: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
     },
     {
         sequelize,
@@ -195,6 +268,14 @@ File.init(
         tableName: "Files",
         timestamps: true,
         hooks: {
+            beforeCreate: async (file: File) => {
+                file.originalName = encryptMetadata(file.originalName);
+            },
+            beforeUpdate: async (file: File) => {
+                if (file.changed("originalName")) {
+                    file.originalName = encryptMetadata(file.originalName);
+                }
+            },
             afterCreate: async (file: File) => {
                 const fileStat = await fs.stat(file.filePath);
                 const disk = await Disk.findByPk(file.diskId);
@@ -205,7 +286,7 @@ File.init(
                 const fileStat = await fs.stat(file.filePath);
                 const disk = await Disk.findByPk(file.diskId);
 
-                await disk?.update({ freeSpace: disk.freeSpace - fileStat.size });
+                await disk?.update({ freeSpace: disk.freeSpace + fileStat.size });
             },
         },
     });

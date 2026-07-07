@@ -1,22 +1,32 @@
 import { Request, Response } from "express";
 import { Folder } from "../models";
 import { reply, replyError } from "../utils/other";
-import { Op, literal } from "sequelize";
+import { decryptMetadata } from "../utils";
+
+const toPublicFolder = (folder: Folder) => ({
+    folderId: folder.folderId,
+    name: decryptMetadata(folder.name) || folder.name,
+    parentFolderId: folder.parentFolderId,
+    isPublic: folder.isPublic,
+    ownerId: folder.ownerId,
+    createdAt: folder.createdAt,
+    updatedAt: folder.updatedAt,
+});
 
 /*
 * Get folder
 */
 export const getFolder = async (req: Request, res: Response) => {
     try {
-        const userId: number = req.user?.userId;
-        const folder: Folder | null = await Folder.findByPk(req.params.id);
+        const userId = req.user.userId;
+        const folder = await Folder.findByPk(req.params.id);
 
-        if (!folder) return replyError(res, 400, "Dossier non trouvé");
-        if (!folder.isAccessibleBy(userId)) return replyError(res, 403, "Accès refusé");
+        if (!folder) return replyError(res, 404, "Dossier non trouve");
+        if (!(await folder.isAccessibleBy(userId))) return replyError(res, 403, "Acces refuse");
 
-        return reply(res, 200, { folder });
+        return reply(res, 200, { folder: toPublicFolder(folder) });
     } catch (error) {
-        return replyError(res, 500, "Erreur lors de la récupération du dossier");
+        return replyError(res, 500, "Erreur lors de la recuperation du dossier");
     }
 };
 
@@ -25,37 +35,25 @@ export const getFolder = async (req: Request, res: Response) => {
 */
 export const getFolders = async (req: Request, res: Response) => {
     try {
-        const userId = req.user!.userId!;
+        const userId = req.user.userId;
         const parentFolderId = parseInt(req.params.parentId);
 
         if (isNaN(parentFolderId)) {
             return replyError(res, 400, "Dossier parent invalide");
         }
 
-        /*
-        * If folder doesn't have parent, his parentFolderId = 0
-        */
-        const folderList = await Folder.findAll({
-            where: { parentFolderId, [Op.or]: [
-                { ownerId: userId }, { isPublic: true },
-                literal(`EXISTS(
-                    SELECT 1 
-                    FROM folderAccess 
-                    WHERE folderAccess.folderId = folder.folderId
-                    AND folderAccess.userId = ${userId}
-                    AND fodlerAccess.canView = 1
-                    )`
-                ),
-            ]},  
-        });
+        const folderList = await Folder.findAll({ where: { parentFolderId } });
+        const accessibleFolders: Folder[] = [];
 
-        if (!folderList) {
-            return replyError(res, 404, "Aucun dossier");
+        for (const folder of folderList) {
+            if (await folder.isAccessibleBy(userId)) {
+                accessibleFolders.push(folder);
+            }
         }
 
-        return reply(res, 200, { folders: folderList });
+        return reply(res, 200, { folders: accessibleFolders.map(toPublicFolder) });
     } catch (error) {
-        return replyError(res, 500, "Erreur lors de la récupération des dossiers");
+        return replyError(res, 500, "Erreur lors de la recuperation des dossiers");
     }
 };
 
@@ -64,24 +62,28 @@ export const getFolders = async (req: Request, res: Response) => {
 */
 export const createFolder = async (req: Request, res: Response) => {
     try {
-        const { name, parentFolderId, password, isPublic } = req.body
+        const { name, parentFolderId, password, isPublic } = req.body;
 
-        if (parentFolderId != 0) {
-            const parent = await Folder.findByPk(parentFolderId)
+        if (parentFolderId !== 0) {
+            const parent = await Folder.findByPk(parentFolderId);
             if (!parent) return replyError(res, 404, "Dossier parent introuvable");
 
-            if (parent.ownerId !== req.user?.userId) return replyError(res, 403, "Action non autorisé");
+            if (!(await parent.hasFolderPermission(req.user.userId, "canEdit"))) {
+                return replyError(res, 403, "Action non autorisee");
+            }
         }
 
-        const folder = await Folder.create({ 
-            name, parentFolderId, 
-            password, isPublic, 
-            ownerId: req.user!.userId 
-        } as any);
+        const folder = await Folder.create({
+            name,
+            parentFolderId,
+            password,
+            isPublic,
+            ownerId: req.user.userId
+        });
 
-        return reply(res, 201, { message: "Dossier créé avec succès", folder });
+        return reply(res, 201, { message: "Dossier cree avec succes", folder: toPublicFolder(folder) });
     } catch (error) {
-        return replyError(res, 500, "Erreur lors de la création du dossier");
+        return replyError(res, 500, "Erreur lors de la creation du dossier");
     }
 };
 
@@ -90,14 +92,14 @@ export const createFolder = async (req: Request, res: Response) => {
 */
 export const updateFolder = async (req: Request, res: Response) => {
     try {
-        const { folderId, name, password, isPublic } = req.body
+        const { folderId, name, password, isPublic } = req.body;
         const updateFolder: Partial<{ name: string, password: string, isPublic: boolean }> = {};
 
-        const userId: number = req.user?.userId;
-        const folder: Folder | null = await Folder.findByPk(folderId);
-        
-        if (!folder) return replyError(res, 400, "Dossier introuvable");
-        if (!folder.isAccessibleBy(userId)) return replyError(res, 403, "Accès refusé");
+        const userId = req.user.userId;
+        const folder = await Folder.findByPk(folderId);
+
+        if (!folder) return replyError(res, 404, "Dossier introuvable");
+        if (!(await folder.hasFolderPermission(userId, "canEdit"))) return replyError(res, 403, "Acces refuse");
 
         if (name) updateFolder.name = name;
         if (password) updateFolder.password = password;
@@ -105,30 +107,29 @@ export const updateFolder = async (req: Request, res: Response) => {
 
         await folder.update(updateFolder);
 
-        return reply(res, 200, { message: "Dossier mis à jour", folder });
+        return reply(res, 200, { message: "Dossier mis a jour", folder: toPublicFolder(folder) });
     } catch (error) {
-        return replyError(res, 500, "Erreur lors de la mise à jour du dossier");
+        return replyError(res, 500, "Erreur lors de la mise a jour du dossier");
     }
 };
-
 
 /*
 * Delete folder
 */
 export const deleteFolder = async (req: Request, res: Response) => {
     try {
-        const userId: number = req.user?.userId;
-        const folderId: number = parseInt(req.params.id);
+        const userId = req.user.userId;
+        const folderId = parseInt(req.params.id);
         if (isNaN(folderId)) return replyError(res, 400, "ID du dossier invalide");
 
-        const folder: Folder | null = await Folder.findByPk(folderId);
-        
-        if (!folder) return replyError(res, 400, "Dossier introuvable");
-        if (!folder.isAccessibleBy(userId)) return replyError(res, 403, "Accès refusé");
+        const folder = await Folder.findByPk(folderId);
+
+        if (!folder) return replyError(res, 404, "Dossier introuvable");
+        if (!(await folder.hasFolderPermission(userId, "canDelete"))) return replyError(res, 403, "Acces refuse");
 
         await folder.destroy();
 
-        return reply(res, 200, { message: "Dossier supprimé avec succès" });
+        return reply(res, 200, { message: "Dossier supprime avec succes" });
     } catch (error) {
         return replyError(res, 500, "Erreur de suppression du dossier");
     }
